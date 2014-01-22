@@ -1,0 +1,11 @@
+{
+	"toggl_api_token": "1234567898765432123456789",
+	"toggl_project_id": "12345",
+	"jira_project": "AngryGirls",
+	"jira_host": "angrygirls.atlassian.net",
+	"jira_port": "443",
+	"jira_user": "username",
+	"jira_pass": "pa55w0rdz",
+	"jira_toggl_field_id": "customfield_10103",
+	"jira_ignore_issue_types": "Story,Epic"
+}

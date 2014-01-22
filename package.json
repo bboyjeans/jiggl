@@ -1,0 +1,27 @@
+{
+  "name": "jiggl",
+  "version": "0.0.1",
+  "description": "Jira to Toggl. Sync your Jira issues as Toggl tasks",
+  "main": "jiggl.js",
+  "dependencies": {
+    "jira": "~0.8.2",
+    "btoa": "~1.1.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inoutput/jiggl.git"
+  },
+  "keywords": [
+    "jira",
+    "toggl"
+  ],
+  "author": "Chris Rickard",
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/inoutput/jiggl/issues"
+  }
+}
