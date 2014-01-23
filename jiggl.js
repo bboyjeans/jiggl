@@ -26,6 +26,13 @@ var JiraService = rest.service(function(u, p) {
 		].join('');
 
 		return this.get(path);
+	},
+	set_toggl_id: function(issue, toggl_id) {
+		var path = ('/rest/api/2/issue/' + issue);
+		var data = {fields: {}};
+		data.fields[config.jira_toggl_field_id] = toggl_id;
+
+		return this.put(path, {data: JSON.stringify(data), headers:{'content-type': 'application/json'}});
 	}
 });
 
@@ -52,7 +59,6 @@ var app = {
 	init: function() {
 		this.jira_service = new JiraService(config.jira_user , config.jira_pass);
 		this.toggl_service = new TogglService(config.toggl_api_token , 'api_token');
-
 
 		this.get_jira_issues()
 			.then(this.create_toggl_tasks)
@@ -89,6 +95,12 @@ var app = {
 			if(response.statusCode ===  200) {
 				var task = data.data;
 				console.log('[Created] Toggl task ' + task.id + ' From Jira issue ' + name);
+
+				//save jira toggl id...
+				//this.jira_service.set_toggl_id('JIG-3', "12345").on('complete', function(data, response){
+				//	console.log(data, response.statusCode);
+				//});
+
 				deferred.resolve(task);
 			}
 			else {
