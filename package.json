@@ -5,7 +5,8 @@
   "main": "jiggl.js",
   "dependencies": {
     "restler": "~3.1.0",
-    "commander": "~2.1.0"
+    "commander": "~2.1.0",
+    "q": "~1.0.0"
   },
   "devDependencies": {},
   "scripts": {

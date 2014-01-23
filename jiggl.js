@@ -4,6 +4,7 @@ var http = require("http");
 var https = require('https');
 var fs = require('fs');
 var rest = require('restler');
+var Q = require("q");
 
 var config = JSON.parse(fs.readFileSync('config.json'));
 
@@ -44,36 +45,64 @@ var TogglService = rest.service(function(u, p) {
 });
 
 
-//instanciate services
-var jira_service = new JiraService(config.jira_user , config.jira_pass);
-var toggl_service = new TogglService(config.toggl_api_token , 'api_token');
 
 
-//get all jira issues...
-jira_service.get_issues(config.jira_project).on('complete', function(data, response) {
+var app = {
 
-	if(response.statusCode === 200) {
-		data.issues.forEach(function(issue) {
-			var task_name = [issue.key, ' - ', issue.fields.summary].join('');
-			console.log('Creating Toggl task: ' + task_name);
+	init: function() {
+		this.jira_service = new JiraService(config.jira_user , config.jira_pass);
+		this.toggl_service = new TogglService(config.toggl_api_token , 'api_token');
 
-			toggl_service.create_task(config.toggl_project_id, task_name).on('complete', function(data, response) {
-				if(response.statusCode ===  200) {
-					var task = data.data;
-					console.log('Task Created', task.id);
-				}
-				else {
-					console.log('Toggl task could not be created: ', data);
-				}
-			}).on('error', function(data) {
-				console.log('Toggl task could not be created: ', data);
-			});
+
+		this.get_jira_issues()
+			.then(this.create_toggl_tasks)
+			.fail(function(e){
+				console.log('[Error] Oh crumbs: ', e);
+			})
+			.done(this.toggl_import_complete);
+	},
+
+	get_jira_issues: function() {
+		var deferred = Q.defer();
+		this.jira_service.get_issues(config.jira_project).on('complete', function(data, response) {
+			if(response.statusCode === 200) {
+				console.log('[Retrieved] ' + data.issues.length + ' Jira Issues');
+				deferred.resolve(data.issues);
+			}
+			else {
+				deferred.reject(new Error('Jira issues could not be collected: ' + JSON.stringify(data)));
+			}
 		});
-	}
-	else {
-		console.log('Jira issues could not be collected', data);
-	}
+		return deferred.promise;
+	},
 
-}).on('error', function(data) {
-	console.log('Jira issues could not be collected', data);
-});
+	create_toggl_tasks: function(issues) {
+		return Q.all(issues.map(function(issue){
+			var task_name = [issue.key, ' - ', issue.fields.summary].join('');
+			return app.create_toggl_task(task_name);
+		}));
+	},
+
+	create_toggl_task: function(name) {
+		var deferred = Q.defer();
+		this.toggl_service.create_task(config.toggl_project_id, name).on('complete', function(data, response) {
+			if(response.statusCode ===  200) {
+				var task = data.data;
+				console.log('[Created] Toggl task ' + task.id + ' From Jira issue ' + name);
+				deferred.resolve(task);
+			}
+			else {
+				deferred.reject(new Error('Toggl task (' + name + ')could not be created: ' + JSON.stringify(data)));
+			}
+		});
+		return deferred.promise;
+	},
+
+	toggl_import_complete: function() {
+		console.log("[Complete]");
+	}
+};
+
+
+//kickoff
+app.init();
