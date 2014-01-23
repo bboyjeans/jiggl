@@ -1,113 +1,79 @@
+#!/usr/bin/env node
+
 var http = require("http");
 var https = require('https');
-
-//load config file...
-var config_filename = 'config.json';
 var fs = require('fs');
+var rest = require('restler');
 
-var config = JSON.parse(fs.readFileSync(config_filename));
+var config = JSON.parse(fs.readFileSync('config.json'));
 
-// console.log(config.toggl_api_token);
-// console.log(config.jira_user);
-// console.log(config.jira_pass);
 
-/*
-var JiraApi = require('jira').JiraApi;
-var jira = new JiraApi('https', config.jira_host, config.jira_port, config.jira_user, config.jira_pass, '2');
-jira.findIssue("HVM-8", function(error, issue) {
-	console.log('Status: ' + JSON.stringify(issue, null, 4));
+//Jira Service
+var JiraService = rest.service(function(u, p) {
+		this.defaults.username = u;
+		this.defaults.password = p;
+	}, {
+		baseURL: ('https://' + config.jira_host)
+	}, {
+	get_issues: function(project_id) {
+		var path = [
+			'/rest/api/2/search?jql=project=',
+			project_id,
+			'+AND+issuetype+NOT+in%20(',
+			config.jira_ignore_issue_types,
+			')&fields=summary&maxResults=1000'
+		].join('');
+
+		return this.get(path);
+	}
 });
-*/
 
 
-//toggl url for getting times
-//path: '/api/v8/time_entries?start_date=2014-01-21T07%3A00%3A00%2B10%3A00&end_date=2014-01-22T07%3A00%3A00%2B10%3A00',
-
-
-var toggl_options = {
-	host: 'toggl.com',
-	path: '/api/v8/tasks',
-	port: 443,
-	method: 'POST',
-	headers: {
-		'Authorization': 'Basic ' + new Buffer(config.toggl_api_token + ':api_token').toString('base64'),
-		'Content-type': 'application/json'
+//Toggl Service
+var TogglService = rest.service(function(u, p) {
+		this.defaults.username = u;
+		this.defaults.password = p;
+	}, {
+		baseURL: 'https://toggl.com'
+	}, {
+	create_task: function(project_id, name) {
+		var path = '/api/v8/tasks';
+		var data = {task:{pid: project_id, name: name}};
+		return this.post(path, {data: JSON.stringify(data)});
 	}
-};
+});
 
 
-/**
- * Get Jira Issues
- */
-
- // /&fields=key,summary,type,customfield_10103
-
-var jira_options = {
-	host: 'inoutput.atlassian.net',
-	path: '/rest/api/2/search?jql=project='+config.jira_project+'+AND+issuetype+NOT+in%20('+config.jira_ignore_issue_types+')&maxResults=1000',
-	port: 443,
-	headers: {
-		'Authorization': 'Basic ' + new Buffer(config.jira_user + ':' + config.jira_pass).toString('base64'),
-		"Content-Type": "application/json"
-	}
-};
-
-request = https.get(jira_options, function(res){
-	var body = "";
-	res.on('data', function(data) {
-		body += data;
-	});
-
-	res.on('end', function() {
-		var data = JSON.parse(body);
-		var issues = data.issues;
-
-		issues.forEach(function(issue){
-			var task_name = issue.key + " - " + issue.fields.summary;
-			console.log("Creating Toggl issue: " + task_name);
+//instanciate services
+var jira_service = new JiraService(config.jira_user , config.jira_pass);
+var toggl_service = new TogglService(config.toggl_api_token , 'api_token');
 
 
-			var post_data = {
-				'task': {
-					'pid': config.toggl_project_id,
-					'name': task_name
+//get all jira issues...
+jira_service.get_issues(config.jira_project).on('complete', function(data, response) {
+
+	if(response.statusCode === 200) {
+		data.issues.forEach(function(issue) {
+			var task_name = [issue.key, ' - ', issue.fields.summary].join('');
+			console.log('Creating Toggl task: ' + task_name);
+
+			toggl_service.create_task(config.toggl_project_id, task_name).on('complete', function(data, response) {
+				if(response.statusCode ===  200) {
+					var task = data.data;
+					console.log('Task Created', task.id);
 				}
-			};
-
-			toggl_options['Content-Length'] = JSON.stringify(post_data).length;
-
-			var toggl_req = https.request(toggl_options, function(res){
-				res.setEncoding('utf8');
-
-				var body = "";
-				res.on('data', function(data) {
-					body += data;
-				});
-				res.on('end', function() {
-					//here we have the full response, html or json object
-					try {
-						var toggl_response = JSON.parse(body);
-						console.log('Created ' + issue.key + ': ' + toggl_response.data.id);
-
-
-						//update in Jira
-
-
-					} catch (e) {
-						console.log('Error ' + issue.key + ': ' + body);
-					}
-				});
-				res.on('error', function(e) {
-					console.log("Got error: " + e.message);
-				});
+				else {
+					console.log('Toggl task could not be created: ', data);
+				}
+			}).on('error', function(data) {
+				console.log('Toggl task could not be created: ', data);
 			});
-
-			toggl_req.write(JSON.stringify(post_data));
-			toggl_req.end();
 		});
+	}
+	else {
+		console.log('Jira issues could not be collected', data);
+	}
 
-	});
-	res.on('error', function(e) {
-		console.log("Got error: " + e.message);
-	});
+}).on('error', function(data) {
+	console.log('Jira issues could not be collected', data);
 });

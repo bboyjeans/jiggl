@@ -4,8 +4,8 @@
   "description": "Jira to Toggl. Sync your Jira issues as Toggl tasks",
   "main": "jiggl.js",
   "dependencies": {
-    "jira": "~0.8.2",
-    "btoa": "~1.1.1"
+    "restler": "~3.1.0",
+    "commander": "~2.1.0"
   },
   "devDependencies": {},
   "scripts": {
