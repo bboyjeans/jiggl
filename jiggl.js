@@ -9,61 +9,59 @@ var Q = require("q");
 var config = JSON.parse(fs.readFileSync('config.json'));
 
 
-//Jira Service
-var JiraService = rest.service(function(u, p) {
-		this.defaults.username = u;
-		this.defaults.password = p;
-	}, {
-		baseURL: ('https://' + config.jira_host)
-	}, {
-	get_issues: function(project_id) {
-		var path = [
-			'/rest/api/2/search?jql=project=',
-			project_id,
-			'+AND+issuetype+NOT+in%20(',
-			config.jira_ignore_issue_types,
-			')&fields=summary&maxResults=1000'
-		].join('');
-
-		return this.get(path);
-	},
-	set_toggl_id: function(issue, toggl_id) {
-		var path = ('/rest/api/2/issue/' + issue);
-		var data = {fields: {}};
-		data.fields[config.jira_toggl_field_id] = toggl_id;
-
-		return this.put(path, {data: JSON.stringify(data), headers:{'content-type': 'application/json'}});
-	}
-});
-
-
-//Toggl Service
-var TogglService = rest.service(function(u, p) {
-		this.defaults.username = u;
-		this.defaults.password = p;
-	}, {
-		baseURL: 'https://toggl.com'
-	}, {
-	create_task: function(project_id, name) {
-		var path = '/api/v8/tasks';
-		var data = {task:{pid: project_id, name: name}};
-		return this.post(path, {data: JSON.stringify(data)});
-	}
-});
-
-
-
-
 var app = {
 
+	JiraService: rest.service(function(u, p) {
+			this.defaults.username = u;
+			this.defaults.password = p;
+		}, {
+			baseURL: ('https://' + config.jira_host)
+		}, {
+		get_issues: function(project_id) {
+			var path = [
+				'/rest/api/2/search?jql=project=',
+				project_id,
+				'+AND+issuetype+NOT+in%20(',
+				config.jira_ignore_issue_types,
+				')&fields=summary&maxResults=1000'
+			].join('');
+
+			return this.get(path);
+		},
+		set_toggl_id: function(issue, toggl_id) {
+			var path = ('/rest/api/2/issue/' + issue);
+			var data = {fields: {}};
+			data.fields[config.jira_toggl_field_id] = toggl_id;
+
+			return this.put(path, {data: JSON.stringify(data), headers:{'content-type': 'application/json'}});
+		}
+	}),
+
+	TogglService: rest.service(function(u, p) {
+			this.defaults.username = u;
+			this.defaults.password = p;
+		}, {
+			baseURL: 'https://toggl.com'
+		}, {
+		create_task: function(project_id, name) {
+			var path = '/api/v8/tasks';
+			var data = {task:{pid: project_id, name: name}};
+			return this.post(path, {data: JSON.stringify(data)});
+		}
+	}),
+
+
+	/**
+	 * initialize
+	 */
 	init: function() {
-		this.jira_service = new JiraService(config.jira_user , config.jira_pass);
-		this.toggl_service = new TogglService(config.toggl_api_token , 'api_token');
+		this.jira_service = new app.JiraService(config.jira_user , config.jira_pass);
+		this.toggl_service = new app.TogglService(config.toggl_api_token , 'api_token');
 
 		this.get_jira_issues()
 			.then(this.create_toggl_tasks)
 			.fail(function(e){
-				console.log('[Error] Oh crumbs: ', e);
+				console.log('[Error] ', e);
 			})
 			.done(this.toggl_import_complete);
 	},
@@ -83,7 +81,7 @@ var app = {
 	},
 
 	create_toggl_tasks: function(issues) {
-		return Q.all(issues.map(function(issue){
+		return Q.allSettled(issues.map(function(issue){
 			var task_name = [issue.key, ' - ', issue.fields.summary].join('');
 			return app.create_toggl_task(task_name);
 		}));
@@ -104,7 +102,8 @@ var app = {
 				deferred.resolve(task);
 			}
 			else {
-				deferred.reject(new Error('Toggl task (' + name + ')could not be created: ' + JSON.stringify(data)));
+				console.log('[Error] Toggl task (' + name + ') could not be created: ' + JSON.stringify(data));
+				deferred.reject();
 			}
 		});
 		return deferred.promise;
