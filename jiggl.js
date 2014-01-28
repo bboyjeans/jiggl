@@ -119,11 +119,6 @@ var app = {
 		return Q.allSettled(tasks.map(function(task) {
 			return app.save_toggl_id_in_jira(task.issue, task.task);
 		}));
-
-		//save jira toggl id...
-		//this.jira_service.set_toggl_id('JIG-3', "12345").on('complete', function(data, response){
-		//	console.log(data, response.statusCode);
-		//});
 	},
 
 	save_toggl_id_in_jira: function(issue, task) {
