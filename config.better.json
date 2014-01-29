@@ -1,0 +1,42 @@
+{
+	"sessions": {
+		"IOP": {
+			"toggl_config": {
+				"api_token": "*********"
+			},
+			"jira_config": {
+				"host": "my.atlassian.net",
+				"port": "443",
+				"user": "user",
+				"pass": "*******",
+				"jira_toggl_field_id": "customfield_10103",
+				"jira_ignore_issue_types": "Story,Epic"
+			}
+		},
+		"YT": {
+			"toggl_config": {
+				"api_token": "*******"
+			},
+			"jira_config": {
+				"host": "my.atlassian.net",
+				"port": "443",
+				"user": "user",
+				"pass": "*******",
+				"jira_toggl_field_id": "customfield_10103",
+				"jira_ignore_issue_types": "Story,Epic"
+			}
+		}
+	},
+	"projects": {
+		"JIG": {
+			"session": "IOP",
+			"toggl_project_id": "3968922",
+			"jira_project": "JIG"
+		},
+		"HVM": {
+			"session": "YT",
+			"toggl_project_id": "3968922",
+			"jira_project": "HVM"
+		}
+	}
+}
