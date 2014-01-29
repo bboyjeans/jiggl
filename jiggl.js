@@ -21,6 +21,7 @@ var app = {
 			var path = [
 				'/rest/api/2/search?jql=project=',
 				project_id,
+				(config.jira_sprint_id ? ("+AND+sprint=" + config.jira_sprint_id) : ""),
 				'+AND+issuetype+NOT+in%20(',
 				config.jira_ignore_issue_types,
 				')&fields=summary&maxResults=1000'
@@ -58,6 +59,7 @@ var app = {
 		this.jira_service = new app.JiraService(config.jira_user , config.jira_pass);
 		this.toggl_service = new app.TogglService(config.toggl_api_token , 'api_token');
 
+		//begin...
 		this.get_jira_issues()
 			.then(this.create_toggl_tasks)
 			.then(this.save_toggl_ids_in_jira)
