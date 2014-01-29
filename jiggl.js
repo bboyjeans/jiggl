@@ -4,8 +4,8 @@ var http = require("http");
 var https = require('https');
 var fs = require('fs');
 var rest = require('restler');
+var colors = require('colors');
 var Q = require("q");
-
 var config = JSON.parse(fs.readFileSync('config.json'));
 
 
@@ -50,6 +50,7 @@ var app = {
 	}),
 
 
+
 	/**
 	 * initialize
 	 */
@@ -60,15 +61,19 @@ var app = {
 		this.get_jira_issues()
 			.then(this.create_toggl_tasks)
 			.then(this.save_toggl_ids_in_jira)
-			.fail(function(e){ console.log('[Error] ', e); })
+			.fail(function(e){ app.show_error(e); })
 			.done(this.toggl_import_complete);
+	},
+
+	show_error: function(msg) {
+		console.log('[Error] '.red, msg);
 	},
 
 	get_jira_issues: function() {
 		var deferred = Q.defer();
 		this.jira_service.get_issues(config.jira_project).on('complete', function(data, response) {
 			if(response.statusCode === 200) {
-				console.log('[Retrieved] ' + data.issues.length + ' Jira Issues');
+				console.log('[Retrieved] '.green + data.issues.length + ' Jira Issues');
 				deferred.resolve(data.issues);
 			}
 			else {
@@ -103,11 +108,11 @@ var app = {
 		this.toggl_service.create_task(config.toggl_project_id, name).on('complete', function(data, response) {
 			if(response.statusCode ===  200) {
 				var task = data.data;
-				console.log('[Created] Toggl task ' + task.id + ' From Jira issue ' + name);
+				console.log('[Created]'.blue, ' Toggl task ' + task.id + ' From Jira issue ' + name);
 				deferred.resolve({ issue: issue, task: task});
 			}
 			else {
-				console.log('[Error] Toggl task (' + name + ') could not be created: ' + JSON.stringify(data));
+				app.show_error('Toggl task (' + name + ') could not be created: ' + JSON.stringify(data));
 				deferred.reject();
 			}
 		});
@@ -126,12 +131,11 @@ var app = {
 		this.jira_service.set_toggl_id(issue.key, task.id).on('complete', function(data, response) {
 
 			if(response.statusCode === 204) {
-				console.log('[Saved] Toggl ID saved to Jira Issue ' + issue.key);
+				console.log('[Saved]'.blue, ' Toggl ID saved to Jira Issue ' + issue.key);
 				deferred.resolve(task);
 			}
 			else {
-				deferred.reject(new Error('Jira issues could not be collected: ' + JSON.stringify(data)));
-				console.log('[Error] Toggl id (' + task.id + ') could not be saved to Jira issue ' + issue.key + ': ' + JSON.stringify(data));
+				app.show_error('Toggl id (' + task.id + ') could not be saved to Jira issue ' + issue.key + ': ' + JSON.stringify(data));
 			}
 		});
 
@@ -139,7 +143,7 @@ var app = {
 	},
 
 	toggl_import_complete: function() {
-		console.log("[Complete]");
+		console.log("[Finished]".green);
 	}
 };
 
